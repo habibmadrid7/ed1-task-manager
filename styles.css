@@ -30,7 +30,7 @@ a{color:var(--accent);text-decoration:none;}
 
 /* ---------- Auth ---------- */
 .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
-  background:radial-gradient(1000px 500px at 15% -10%,#356099 0%,transparent 55%),linear-gradient(140deg,#1F3864 0%,#0e1c33 100%);}
+  background:radial-gradient(1000px 500px at 15% -10%,color-mix(in srgb,var(--accent) 60%,#0e1c33) 0%,transparent 55%),linear-gradient(140deg,var(--navy) 0%,#0e1c33 100%);}
 .auth-card{background:var(--surface);border-radius:20px;padding:38px 34px;width:100%;max-width:412px;box-shadow:0 30px 70px rgba(2,10,30,.4);border:1px solid var(--line);}
 .auth-title{font-size:22px;text-align:center;margin:0 0 4px;letter-spacing:.2px;}
 .auth-sub{text-align:center;color:var(--muted);font-size:13px;margin:0 0 22px;}
@@ -255,3 +255,147 @@ table{min-width:480px;}
 @media(max-width:400px){
   .grid-5,.grid-4{grid-template-columns:1fr;}
 }
+
+/* ============ v5 polish: accessibility, callouts, motion ============ */
+
+/* Visible keyboard focus everywhere (mouse clicks stay clean) */
+a:focus-visible,button:focus-visible,.btn:focus-visible,.seg-btn:focus-visible,
+input:focus-visible,select:focus-visible,textarea:focus-visible,.navlink:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px;border-radius:6px;
+}
+
+/* Theme-aware callout / notice (replaces hard-coded light-only boxes) */
+.callout{border:1px solid color-mix(in srgb,var(--amber) 45%,transparent);
+  background:color-mix(in srgb,var(--amber) 13%,transparent);color:var(--ink);
+  border-radius:var(--radius-sm);padding:13px 15px;font-size:13px;line-height:1.5;}
+.callout strong{color:var(--ink);}
+
+/* Logo lockup on the auth cards */
+.auth-logo{display:flex;justify-content:center;margin-bottom:14px;}
+
+/* Gentle modal entrance (final state is always normal, so it degrades safely) */
+.modal{opacity:.98;transform:translateY(8px) scale(.99);
+  transition:transform .18s ease,opacity .18s ease;}
+.modal-back.open .modal{opacity:1;transform:none;}
+
+/* KPI numbers shouldn't wrap awkwardly on small tiles */
+.kpi-num{white-space:nowrap;}
+
+/* Make the segmented control full-width and scrollable on phones */
+@media(max-width:560px){
+  .seg{width:100%;overflow-x:auto;flex-wrap:nowrap;}
+  .page-head{align-items:flex-start;}
+}
+
+/* Respect reduced-motion preference */
+@media(prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important;}
+}
+
+/* ============ v6: richer, more colourful finish (tasteful, not loud) ============ */
+
+/* Buttons: gentle gradients so primary actions feel alive */
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-600));border-color:var(--accent-600);}
+.btn-primary:hover{filter:brightness(1.06);background:linear-gradient(135deg,var(--accent),var(--accent-600));}
+.btn-navy{background:linear-gradient(135deg,#2E75B6,#1F3864);}
+.btn-success{background:linear-gradient(135deg,#1aa45d,var(--green));color:#fff;border-color:var(--green);}
+
+/* KPI tiles: a coloured top strip + a soft corner wash, so the dashboard reads at a glance */
+.kpi{border-top:3px solid var(--accent);
+  background:radial-gradient(150px 95px at 100% 0,color-mix(in srgb,var(--accent) 10%,transparent),transparent 70%),var(--surface);}
+.kpi.k-amber{border-top-color:var(--amber);
+  background:radial-gradient(150px 95px at 100% 0,color-mix(in srgb,var(--amber) 13%,transparent),transparent 70%),var(--surface);}
+.kpi.k-green{border-top-color:var(--green);
+  background:radial-gradient(150px 95px at 100% 0,color-mix(in srgb,var(--green) 13%,transparent),transparent 70%),var(--surface);}
+.kpi.k-red{border-top-color:var(--red);
+  background:radial-gradient(150px 95px at 100% 0,color-mix(in srgb,var(--red) 12%,transparent),transparent 70%),var(--surface);}
+.kpi.k-navy{border-top-color:var(--accent);
+  background:radial-gradient(150px 95px at 100% 0,color-mix(in srgb,var(--accent) 10%,transparent),transparent 70%),var(--surface);}
+
+/* Active nav link: a subtle navy→blue gradient instead of a flat block */
+.navlink.active{background:linear-gradient(135deg,var(--accent),var(--navy));}
+html[data-theme="dark"] .navlink.active{background:linear-gradient(135deg,var(--accent),var(--navy));}
+
+/* Page titles get a small coloured accent bar — a clean, app-like touch */
+.page-head h2{position:relative;padding-left:14px;}
+.page-head h2::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:4px;height:72%;border-radius:4px;background:linear-gradient(var(--accent),var(--navy));}
+
+/* Section headings get a matching (smaller) accent dot-bar */
+.section-head h2{position:relative;padding-left:12px;}
+.section-head h2::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:3px;height:66%;border-radius:3px;background:var(--accent);}
+
+/* Due pills: colour-code the "healthy" state green too, so the whole column is informative */
+.due-ok{background:color-mix(in srgb,var(--green) 13%,transparent);color:var(--green);}
+
+/* Cards & unit cards: a hair more depth + a coloured accent on unit cards */
+.card{transition:box-shadow .14s ease,border-color .14s ease,transform .14s ease;}
+.unit-card{border-top:3px solid var(--accent);}
+
+/* Count pills in unit cards pop a little more */
+.unit-card .count-pill{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 22%,transparent);}
+
+/* Topbar: a whisper of accent under the divider */
+.topbar{box-shadow:0 1px 0 color-mix(in srgb,var(--accent) 9%,transparent);}
+
+/* Brand mark gets a soft glow so the sidebar feels finished */
+.brand-mark{box-shadow:0 4px 12px color-mix(in srgb,var(--accent) 35%,transparent);}
+
+
+/* ============ v7: brand logo, branded loading, multi-colour themes ============ */
+
+/* Your brand mark on a clean tile that reads on light AND dark */
+.brand-logo{width:40px;height:40px;border-radius:12px;flex:0 0 auto;
+  background:#fff url("data:image/png;base64,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") center/68% no-repeat;
+  box-shadow:0 4px 12px rgba(16,24,40,.16),inset 0 0 0 1px rgba(16,24,40,.06);}
+.brand-logo-lg{width:84px;height:84px;border-radius:20px;background-size:66%;}
+.brand-logo-xl{width:98px;height:98px;border-radius:24px;background-size:68%;}
+
+/* Branded full-screen loading state */
+.loading-screen{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:18px;background:var(--bg);}
+.loading-screen .brand-logo{animation:logopulse 1.5s ease-in-out infinite;}
+.loading-ring{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .8s linear infinite;}
+.loading-text{color:var(--muted);font-weight:600;font-size:13px;letter-spacing:.05em;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes logopulse{0%,100%{transform:scale(1);}50%{transform:scale(1.07);}}
+
+/* Accent tint derived from the active accent, so it follows every colour theme */
+:root{--accent-050:color-mix(in srgb,var(--accent) 12%,var(--surface));}
+html[data-theme="dark"]{--accent-050:color-mix(in srgb,var(--accent) 18%,var(--surface));}
+
+/* Colour themes — swap only the accent family; status colours stay semantic */
+:root[data-accent="emerald"]{--accent:#0ea36b;--accent-600:#0b8457;--navy:#0c3b2e;}
+:root[data-accent="violet"]{--accent:#7c5cff;--accent-600:#6442e0;--navy:#2b2552;}
+:root[data-accent="amber"]{--accent:#e08a1e;--accent-600:#bf720f;--navy:#4a3410;}
+:root[data-accent="teal"]{--accent:#0d9aa6;--accent-600:#0a7d87;--navy:#0c3942;}
+:root[data-accent="rose"]{--accent:#e5487f;--accent-600:#cc3568;--navy:#4a1430;}
+html[data-theme="dark"][data-accent="emerald"]{--accent:#2fd18f;}
+html[data-theme="dark"][data-accent="violet"]{--accent:#9b85ff;}
+html[data-theme="dark"][data-accent="amber"]{--accent:#eaa945;}
+html[data-theme="dark"][data-accent="teal"]{--accent:#2bc3cf;}
+html[data-theme="dark"][data-accent="rose"]{--accent:#f26a97;}
+
+/* Theme-picker swatches */
+.swatches{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;}
+.swatch{width:22px;height:22px;border-radius:50%;border:2px solid var(--surface);
+  box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0;transition:transform .12s;}
+.swatch:hover{transform:scale(1.14);}
+.swatch.on{box-shadow:0 0 0 2px var(--accent);}
+.sw-blue{background:#2E75B6;}.sw-emerald{background:#0ea36b;}.sw-violet{background:#7c5cff;}
+.sw-amber{background:#e08a1e;}.sw-teal{background:#0d9aa6;}.sw-rose{background:#e5487f;}
+
+/* Accent picker in the top bar */
+.accent-wrap{position:relative;}
+.palette-btn{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
+  background:var(--surface);color:var(--body);font-size:15px;display:flex;align-items:center;
+  justify-content:center;box-shadow:var(--shadow-sm);cursor:pointer;}
+.palette-btn:hover{border-color:var(--accent);color:var(--ink);}
+.accent-pop{position:absolute;top:46px;right:0;background:var(--surface);border:1px solid var(--line);
+  border-radius:13px;padding:13px 14px;box-shadow:var(--shadow-md);z-index:40;display:none;}
+.accent-pop.open{display:block;}
+.accent-pop .lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--faint);margin-bottom:10px;text-align:center;white-space:nowrap;}
+.auth-card .swatches{margin-top:18px;}

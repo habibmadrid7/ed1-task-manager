@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>try{document.documentElement.dataset.theme=localStorage.getItem("ed1-theme")||"light"}catch(e){}</script>
+<script>try{var d=document.documentElement;d.dataset.theme=localStorage.getItem("ed1-theme")||"light";var a=localStorage.getItem("ed1-accent");if(a)d.dataset.accent=a;}catch(e){}</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231F3864'/%3E%3Cpath d='M9 16l5 5 9-10' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <title>Executive Task Manager — Sign in</title>
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -12,7 +13,8 @@
 <div class="auth-wrap">
   <button class="theme-fab" onclick="toggleTheme()" title="Light / dark"><span id="themeIcon">🌙</span></button>
   <div class="auth-card">
-    <h1 class="auth-title">EXECUTIVE TASK MANAGER</h1>
+    <div class="auth-logo"><div class="brand-logo brand-logo-xl"></div></div>
+    <h1 class="auth-title">Executive Task Manager</h1>
     <p class="auth-sub">Rumbu Industries Group &bull; Sign in</p>
 
     <label>Email address</label>
@@ -26,11 +28,19 @@
     <button class="btn btn-primary btn-block" id="loginBtn" style="margin-top:20px" onclick="login()">Sign in</button>
     <div class="status" id="status"></div>
     <p class="auth-sub" style="margin-top:20px">Accounts are created by the administrator. Contact the office for access.</p>
+    <div class="swatches" style="margin-top:18px">
+      <button class="swatch sw-blue" data-accent="blue" title="Blue" onclick="setAccent('blue')"></button>
+      <button class="swatch sw-emerald" data-accent="emerald" title="Emerald" onclick="setAccent('emerald')"></button>
+      <button class="swatch sw-violet" data-accent="violet" title="Violet" onclick="setAccent('violet')"></button>
+      <button class="swatch sw-amber" data-accent="amber" title="Amber" onclick="setAccent('amber')"></button>
+      <button class="swatch sw-teal" data-accent="teal" title="Teal" onclick="setAccent('teal')"></button>
+      <button class="swatch sw-rose" data-accent="rose" title="Rose" onclick="setAccent('rose')"></button>
+    </div>
   </div>
 </div>
 
 <script src="config.js"></script>
-<script>(function(){var i=document.getElementById("themeIcon"); if(i) i.textContent=currentTheme()==="dark"?"☀":"🌙";})();</script>
+<script>(function(){var i=document.getElementById("themeIcon"); if(i) i.textContent=currentTheme()==="dark"?"☀":"🌙"; if(typeof markAccent==="function") markAccent();})();</script>
 <script>
 async function login(){
   const email = document.getElementById("email").value.trim().toLowerCase();

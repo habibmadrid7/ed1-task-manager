@@ -91,7 +91,7 @@
 <script src="../../config.js"></script>
 <script src="../../auth.js"></script>
 <script>
-let ME=null, UNITS={}, CUR=null, PAGE=0, FSTATUS="all", searchTimer=null; const SIZE=20;
+let ME=null, UNITS={}, CUR=null, PAGE=0, FSTATUS="in_progress", searchTimer=null; const SIZE=20;
 
 (async () => {
   ME = await requireAuth({ role:"superadmin" });
@@ -113,7 +113,7 @@ let ME=null, UNITS={}, CUR=null, PAGE=0, FSTATUS="all", searchTimer=null; const 
       </div></div>
     <div class="toolbar">
       <div class="seg" id="seg">
-        ${[["all","All"],["in_progress","In progress"],["pending_review","Pending"],["approved","Approved"],["rejected","Rejected"],["archived","🗄 Archived"]]
+        ${[["in_progress","In progress"],["pending_review","Pending review"],["rejected","Rejected"],["archived","🗄 Approved"]]
           .map(([v,l],i)=>`<button class="seg-btn${i===0?" active":""}" data-v="${v}" onclick="pickStatus(this)">${l}</button>`).join("")}
       </div>
       <div class="toolbar-row">
@@ -145,7 +145,7 @@ function resetLoad(){ PAGE=0; loadTasks(); }
 function onPage(p){ PAGE=p; loadTasks(); }
 function liveSearch(){ clearTimeout(searchTimer); searchTimer=setTimeout(resetLoad, 350); }
 function pickStatus(btn){ FSTATUS=btn.dataset.v; [...document.querySelectorAll("#seg .seg-btn")].forEach(b=>b.classList.remove("active")); btn.classList.add("active"); resetLoad(); }
-function clearFilters(){ FSTATUS="all"; [...document.querySelectorAll("#seg .seg-btn")].forEach((b,i)=>b.classList.toggle("active",i===0)); document.getElementById("f_scope").value="all"; document.getElementById("f_from").value=""; document.getElementById("f_due").value=""; document.getElementById("f_search").value=""; document.getElementById("f_overdue").checked=false; resetLoad(); }
+function clearFilters(){ FSTATUS="in_progress"; [...document.querySelectorAll("#seg .seg-btn")].forEach((b,i)=>b.classList.toggle("active",i===0)); document.getElementById("f_scope").value="all"; document.getElementById("f_from").value=""; document.getElementById("f_due").value=""; document.getElementById("f_search").value=""; document.getElementById("f_overdue").checked=false; resetLoad(); }
 
 function printTasks(){
   // Build a human-readable summary of active filters for the print header
@@ -166,8 +166,8 @@ function printTasks(){
 
 function buildQuery(){
   let q=sb.from("tasks").select("*",{count:"exact"});
-  if(FSTATUS==="archived"){ q=q.not("archived_at","is",null); }
-  else{ q=q.is("archived_at",null); if(FSTATUS!=="all") q=q.eq("status",FSTATUS); }
+  if(FSTATUS==="archived"){ q=q.not("archived_at","is",null); }   // Approved tab = archived/closed work
+  else{ q=q.is("archived_at",null).eq("status",FSTATUS); }         // one status at a time: In progress / Pending review / Rejected
   const scope=val("f_scope");
   if(scope==="personal") q=q.is("unit_id",null); else if(scope!=="all") q=q.eq("unit_id",scope);
   const from=val("f_from"); if(from) q=q.gte("created_at",from);
@@ -310,7 +310,9 @@ async function decide(decision){
   if(!CUR) return;
   let note=null; if(decision==="rejected") note=prompt("Reason for rejection (the admin will see this):")||null;
   const s=document.getElementById("d_status"); s.className="status"; s.textContent="Saving...";
-  const { error }=await sb.from("tasks").update({status:decision,rejection_note:note,reviewed_by:ME.id,reviewed_at:new Date().toISOString()}).eq("id",CUR.id);
+  const patch={status:decision,rejection_note:note,reviewed_by:ME.id,reviewed_at:new Date().toISOString()};
+  if(decision==="approved") patch.archived_at=new Date().toISOString();  // approve => send straight to Archive
+  const { error }=await sb.from("tasks").update(patch).eq("id",CUR.id);
   if(error){ s.className="status err"; s.textContent=error.message; return; }
   // Notify the unit's admins by in-app + email. The task row (incl. any
   // rejection reason) is already saved, so the server reads it from there.

@@ -2,7 +2,7 @@
 // Publishable (anon) key only. Never put the secret key here.
 
 // --- theme bootstrap (runs as soon as this file loads) ---
-(function(){ try{ document.documentElement.setAttribute("data-theme", localStorage.getItem("ed1-theme") || "light"); }catch(e){} })();
+(function(){ try{ var d=document.documentElement; d.setAttribute("data-theme", localStorage.getItem("ed1-theme") || "light"); var a=localStorage.getItem("ed1-accent"); if(a) d.setAttribute("data-accent", a); }catch(e){} })();
 function currentTheme(){ return document.documentElement.getAttribute("data-theme") || "light"; }
 function toggleTheme(){
   const next = currentTheme() === "dark" ? "light" : "dark";
@@ -10,6 +10,21 @@ function toggleTheme(){
   try{ localStorage.setItem("ed1-theme", next); }catch(e){}
   const i = document.getElementById("themeIcon"); if(i) i.textContent = next === "dark" ? "☀" : "🌙";
 }
+
+// --- accent / colour themes ---
+const ACCENTS = [["blue","Blue"],["emerald","Emerald"],["violet","Violet"],["amber","Amber"],["teal","Teal"],["rose","Rose"]];
+function currentAccent(){ return document.documentElement.getAttribute("data-accent") || "blue"; }
+function setAccent(name){
+  const d = document.documentElement;
+  if(name === "blue") d.removeAttribute("data-accent"); else d.setAttribute("data-accent", name);
+  try{ localStorage.setItem("ed1-accent", name); }catch(e){}
+  markAccent();
+}
+function markAccent(){ const cur = currentAccent();
+  document.querySelectorAll(".swatch").forEach(s => s.classList.toggle("on",(s.getAttribute("data-accent")||"blue")===cur)); }
+function swatchesHTML(){ return '<div class="swatches">'+ACCENTS.map(a=>`<button class="swatch sw-${a[0]}" data-accent="${a[0]}" title="${a[1]}" onclick="setAccent('${a[0]}')"></button>`).join("")+'</div>'; }
+function toggleAccentMenu(e){ if(e) e.stopPropagation(); const p=document.getElementById("accentPop"); if(p){ p.classList.toggle("open"); markAccent(); } }
+document.addEventListener("click", function(e){ const p=document.getElementById("accentPop"); if(p && p.classList.contains("open") && !e.target.closest(".accent-wrap")) p.classList.remove("open"); });
 
 const SUPABASE_URL = "https://qodcqczukvireuelkoko.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvZGNxY3p1a3ZpcmV1ZWxrb2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1MzQwMTIsImV4cCI6MjEwMjExMDAxMn0.er4KHeu4XhsfymQ2PzqIGyg71N9IqIPIBG0iabZdEWE";

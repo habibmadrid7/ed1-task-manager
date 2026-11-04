@@ -46,7 +46,7 @@ function renderShell(profile, opts){
   document.getElementById("app").innerHTML = `
     <div class="backdrop" id="backdrop" onclick="toggleSidebar()"></div>
     <aside class="sidebar" id="sidebar">
-      <div class="brand"><div class="brand-mark">ED1</div>
+      <div class="brand"><div class="brand-logo"></div>
         <div><div class="brand-title">ED1 Task Manager</div><div class="brand-sub">Rumbu Industries Group</div></div></div>
       <div class="role-pill ${isSA?"role-sa":"role-admin"}">${isSA?"Super Admin":escapeHtml(opts.unitName||"Unit")+" Admin"}</div>
       <div class="nav-label">${isSA?"Management":"Workspace"}</div>
@@ -65,6 +65,10 @@ function renderShell(profile, opts){
         </div>
         <div class="topbar-right">
           <span class="topbar-note">${escapeHtml(opts.note||"")}</span>
+          <div class="accent-wrap">
+            <button class="palette-btn" onclick="toggleAccentMenu(event)" title="Accent colour">🎨</button>
+            <div class="accent-pop" id="accentPop"><div class="lbl">Accent colour</div>${swatchesHTML()}</div>
+          </div>
           <button class="theme-toggle" onclick="toggleTheme()" title="Light / dark"><span id="themeIcon">${currentTheme()==="dark"?"☀":"🌙"}</span></button>
         </div>
       </header>
@@ -72,6 +76,7 @@ function renderShell(profile, opts){
     </main>`;
 
   if(!isSA){ updateNotifBadge(profile.id); }
+  markAccent();
   return document.getElementById("content");
 }
 

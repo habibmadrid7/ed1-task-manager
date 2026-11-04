@@ -47,7 +47,7 @@
 <script src="../../config.js"></script>
 <script src="../../auth.js"></script>
 <script>
-let ME=null, MY=[], UNAME={}, CUR=null, PAGE=0, FSTATUS="all", searchTimer=null; const SIZE=20;
+let ME=null, MY=[], UNAME={}, CUR=null, PAGE=0, FSTATUS="in_progress", searchTimer=null; const SIZE=20;
 
 (async () => {
   ME = await requireAuth({ role:"admin" });
@@ -63,7 +63,7 @@ let ME=null, MY=[], UNAME={}, CUR=null, PAGE=0, FSTATUS="all", searchTimer=null;
     <div class="page-head"><h2>My tasks</h2><button class="btn btn-primary" onclick="openNewTask()">+ New task</button></div>
     <div class="toolbar">
       <div class="seg" id="seg">
-        ${[["all","All"],["in_progress","In progress"],["pending_review","Pending"],["approved","Approved"],["rejected","Rejected"]]
+        ${[["in_progress","In progress"],["pending_review","Pending review"],["rejected","Rejected"],["archived","🗄 Approved"]]
           .map(([v,l],i)=>`<button class="seg-btn${i===0?" active":""}" data-v="${v}" onclick="pickStatus(this)">${l}</button>`).join("")}
       </div>
       <div class="toolbar-row">
@@ -91,15 +91,16 @@ function resetLoad(){ PAGE=0; loadTasks(); }
 function liveSearch(){ clearTimeout(searchTimer); searchTimer=setTimeout(resetLoad, 350); }
 function onPage(p){ PAGE=p; loadTasks(); }
 function pickStatus(btn){ FSTATUS=btn.dataset.v; [...document.querySelectorAll("#seg .seg-btn")].forEach(b=>b.classList.remove("active")); btn.classList.add("active"); resetLoad(); }
-function clearFilters(){ FSTATUS="all"; [...document.querySelectorAll("#seg .seg-btn")].forEach((b,i)=>b.classList.toggle("active",i===0)); document.getElementById("f_scope").value="all"; document.getElementById("f_from").value=""; document.getElementById("f_due").value=""; document.getElementById("f_search").value=""; document.getElementById("f_overdue").checked=false; resetLoad(); }
+function clearFilters(){ FSTATUS="in_progress"; [...document.querySelectorAll("#seg .seg-btn")].forEach((b,i)=>b.classList.toggle("active",i===0)); document.getElementById("f_scope").value="all"; document.getElementById("f_from").value=""; document.getElementById("f_due").value=""; document.getElementById("f_search").value=""; document.getElementById("f_overdue").checked=false; resetLoad(); }
 
 function buildQuery(){
-  let q=sb.from("tasks").select("*",{count:"exact"}).is("archived_at",null);
+  let q=sb.from("tasks").select("*",{count:"exact"});
+  if(FSTATUS==="archived"){ q=q.not("archived_at","is",null); }   // Approved tab = archived/closed work
+  else{ q=q.is("archived_at",null).eq("status",FSTATUS); }         // one status at a time: In progress / Pending review / Rejected
   const scope=val("f_scope");
   if(scope==="all") q=q.or("owner_id.eq."+ME.id+",unit_id.in.("+MY.join(",")+")");
   else if(scope==="personal") q=q.is("unit_id",null).eq("owner_id",ME.id);
   else q=q.eq("unit_id",scope);
-  if(FSTATUS!=="all") q=q.eq("status",FSTATUS);
   const from=val("f_from"); if(from) q=q.gte("created_at",from);
   const dueBy=val("f_due"); if(dueBy) q=q.lte("due_date",dueBy);
   if(document.getElementById("f_overdue").checked) q=q.lt("due_date",todayStr()).neq("status","approved");

@@ -77,24 +77,31 @@ async function load(){
   const dash=document.getElementById("dash"); dash.innerHTML=`<div class="empty">Loading…</div>`;
   const { from, to } = periodRange();
 
-  let tq=sb.from("tasks").select("unit_id, status, due_date, created_at").is("archived_at",null);
+  // Active (open) work only: in progress + pending + rejected. Approved tasks are archived on approval.
+  let tq=sb.from("tasks").select("unit_id, status, due_date, created_at").is("archived_at",null).in("status",["in_progress","pending_review","rejected"]);
   if(from) tq=tq.gte("created_at",from);
   if(to)   tq=tq.lte("created_at", to + "T23:59:59");
+  // Approved/completed work (lives in the archive) — fetched only so the Approved tile and charts stay truthful.
+  let aq=sb.from("tasks").select("unit_id, due_date, created_at").eq("status","approved");
+  if(from) aq=aq.gte("created_at",from);
+  if(to)   aq=aq.lte("created_at", to + "T23:59:59");
   let pq=sb.from("tasks").select("id, title, status, due_date, created_at").is("unit_id",null).is("archived_at",null).eq("owner_id",ME.id);
   if(from) pq=pq.gte("created_at",from);
   if(to)   pq=pq.lte("created_at", to + "T23:59:59");
 
-  const [{ data: units }, { data: tasks }, { data: acts }, { data: personal }] = await Promise.all([
+  const [{ data: units }, { data: tasks }, { data: approved }, { data: acts }, { data: personal }] = await Promise.all([
     sb.from("units").select("id, name").is("archived_at",null).order("name"),
     tq,
+    aq,
     sb.from("activity_log").select("action, created_at, actor:profiles(full_name)").order("created_at",{ascending:false}).limit(8),
     pq.order("due_date",{ascending:true,nullsFirst:false}),
   ]);
-  const all=tasks||[];
+  const all=tasks||[]; const appr=approved||[];
   const overdue=t=>t.due_date && t.status!=="approved" && t.due_date<todayStr();
   const cnt=s=>all.filter(t=>t.status===s).length;
-  const kpi={ total:all.length, inprog:cnt("in_progress"), pending:cnt("pending_review"), approved:cnt("approved"), rejected:cnt("rejected"), due:all.filter(overdue).length };
-  DATA={ units:units||[], all };
+  // "Remaining" counts only open work: in progress + pending. Approved is excluded.
+  const kpi={ remaining:cnt("in_progress")+cnt("pending_review"), total:all.length+appr.length, inprog:cnt("in_progress"), pending:cnt("pending_review"), approved:appr.length, rejected:cnt("rejected"), due:all.filter(overdue).length };
+  DATA={ units:units||[], all, appr, everything:all.concat(appr) };
 
   const rangeLabel = (from||to) ? `${from?fmtDate(from):"start"} → ${to?fmtDate(to):"today"}` : "All time";
   const card=(href,cls,ic,num,label)=>`<a class="kpi ${cls}" href="${href}"><div class="kpi-ico">${IC[ic]}</div><div class="kpi-num">${num}</div><div class="kpi-label">${label}</div></a>`;
@@ -104,10 +111,10 @@ async function load(){
     <div class="muted" style="font-size:12.5px;margin:-8px 0 10px">Showing: <strong>${escapeHtml(rangeLabel)}</strong></div>
     ${kpi.due>0?`<a href="tasks.html?view=overdue" class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;border-color:var(--red);color:inherit"><span style="font-size:20px">⚠️</span><div><strong style="color:var(--red)">${kpi.due} task${kpi.due===1?" is":"s are"} overdue.</strong> <span class="muted">Click to review them now.</span></div></a>`:""}
     <div class="grid grid-5">
-      ${card("tasks.html","k-navy","total",kpi.total,"Total tasks")}
+      ${card("tasks.html","k-navy","total",kpi.remaining,"Tasks remaining")}
       ${card("tasks.html?status=pending_review","k-amber","clock",kpi.pending,"Pending review")}
       ${card("tasks.html?view=overdue","k-red","alert",kpi.due,"Due (overdue)")}
-      ${card("tasks.html?status=approved","k-green","check",kpi.approved,"Approved")}
+      ${card("tasks.html?status=archived","k-green","check",kpi.approved,"Approved (archived)")}
       ${card("tasks.html?status=rejected","k-red","x",kpi.rejected,"Rejected")}
     </div>
     <div class="grid grid-3" style="margin-top:16px">
@@ -124,12 +131,13 @@ async function load(){
         </div>
         <div class="feed">${(personal||[]).filter(t=>t.status!=="approved").slice(0,5).map(t=>{const di=daysInfo(t.due_date,t.status);return `<div class="feed-item"><div class="feed-body"><div class="feed-text">${escapeHtml(t.title)}</div><div class="feed-meta"><span class="due ${di.cls}">${di.text}</span></div></div></div>`;}).join("")||`<div class="muted">No open personal tasks.</div>`}</div></div>
       <div class="card"><div class="section-head"><h2>By unit</h2><a class="btn btn-sm" href="tasks.html">Open tasks</a></div>
-        <div class="table-wrap" style="box-shadow:none"><table><thead><tr><th>Unit</th><th>Total</th><th>Pending</th><th>Overdue</th><th>Approved</th><th>Rejected</th></tr></thead><tbody id="unitRows"></tbody></table></div></div>
+        <div class="table-wrap" style="box-shadow:none"><table><thead><tr><th>Unit</th><th>Remaining</th><th>Pending</th><th>Overdue</th><th>Approved</th><th>Rejected</th></tr></thead><tbody id="unitRows"></tbody></table></div></div>
       <div class="card"><div class="section-head"><h2>Recent activity</h2><a class="btn btn-sm" href="activity.html">View all</a></div><div class="feed">${feed}</div></div>
     </div>`;
 
-  const tally=list=>({total:list.length,pending:list.filter(t=>t.status==="pending_review").length,due:list.filter(overdue).length,approved:list.filter(t=>t.status==="approved").length,rejected:list.filter(t=>t.status==="rejected").length});
-  document.getElementById("unitRows").innerHTML=(units||[]).map(u=>{const t=tally(all.filter(x=>x.unit_id===u.id));return `<tr><td><strong>${escapeHtml(u.name)}</strong></td><td>${t.total}</td><td>${t.pending}</td><td>${t.due?`<span class="badge badge-rejected badge-flat">${t.due}</span>`:0}</td><td>${t.approved}</td><td>${t.rejected}</td></tr>`;}).join("")||`<tr><td colspan="6" class="empty">No units yet.</td></tr>`;
+  const apprByUnit=id=>appr.filter(x=>x.unit_id===id).length;
+  const tally=list=>({remaining:list.filter(t=>t.status==="in_progress"||t.status==="pending_review").length,pending:list.filter(t=>t.status==="pending_review").length,due:list.filter(overdue).length,rejected:list.filter(t=>t.status==="rejected").length});
+  document.getElementById("unitRows").innerHTML=(units||[]).map(u=>{const t=tally(all.filter(x=>x.unit_id===u.id));return `<tr><td><strong>${escapeHtml(u.name)}</strong></td><td>${t.remaining}</td><td>${t.pending}</td><td>${t.due?`<span class="badge badge-rejected badge-flat">${t.due}</span>`:0}</td><td>${apprByUnit(u.id)}</td><td>${t.rejected}</td></tr>`;}).join("")||`<tr><td colspan="6" class="empty">No units yet.</td></tr>`;
 
   drawCharts(kpi);
   new MutationObserver(()=>drawCharts(kpi)).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
@@ -142,11 +150,11 @@ function drawCharts(kpi){
   const col=themeColors(); const AMBER="#d0850f",GREEN="#15803d",RED="#c0392b";
   Chart.defaults.font.family=getComputedStyle(document.body).fontFamily; Chart.defaults.color=col.text;
   CH.status=new Chart(document.getElementById("c_status"),{type:"doughnut",data:{labels:["In progress","Pending review","Approved","Rejected"],datasets:[{data:[kpi.inprog,kpi.pending,kpi.approved,kpi.rejected],backgroundColor:[col.accent,AMBER,GREEN,RED],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:"64%",plugins:{legend:{position:"bottom",labels:{boxWidth:9,boxHeight:9,usePointStyle:true,padding:14}}}}});
-  const labels=DATA.units.map(u=>u.name), totals=DATA.units.map(u=>DATA.all.filter(x=>x.unit_id===u.id).length);
+  const labels=DATA.units.map(u=>u.name), totals=DATA.units.map(u=>DATA.everything.filter(x=>x.unit_id===u.id).length);
   CH.unit=new Chart(document.getElementById("c_unit"),{type:"bar",data:{labels,datasets:[{data:totals,backgroundColor:col.navy,borderRadius:7,maxBarThickness:32}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:col.grid}},x:{grid:{display:false}}}}});
   const now=new Date(),weeks=[]; for(let i=7;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i*7);weeks.push(d);}
   const wk=d=>{const x=new Date(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);return x.toISOString().slice(0,10);};
-  const bucket={}; weeks.forEach(w=>bucket[wk(w)]=0); DATA.all.forEach(t=>{const k=wk(t.created_at);if(k in bucket)bucket[k]++;});
+  const bucket={}; weeks.forEach(w=>bucket[wk(w)]=0); DATA.everything.forEach(t=>{const k=wk(t.created_at);if(k in bucket)bucket[k]++;});
   CH.trend=new Chart(document.getElementById("c_trend"),{type:"line",data:{labels:Object.keys(bucket).map(k=>fmtDate(k).replace(/ \d{4}$/,"")),datasets:[{data:Object.values(bucket),borderColor:col.accent,backgroundColor:"rgba(46,117,182,.14)",fill:true,tension:.35,pointRadius:3,pointBackgroundColor:col.accent}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:col.grid}},x:{grid:{display:false}}}}});
 }
 </script>

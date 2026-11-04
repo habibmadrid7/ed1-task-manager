@@ -78,17 +78,24 @@ function periodRange(){
 async function load(){
   const dash=document.getElementById("dash"); dash.innerHTML=`<div class="empty">Loading…</div>`;
   const { from, to } = periodRange();
-  let q=sb.from("tasks").select("id, title, unit_id, status, due_date, created_at").in("unit_id",MY).is("archived_at",null);
+  // Active (open) work only: in progress + pending + rejected. Approved tasks are archived on approval.
+  let q=sb.from("tasks").select("id, title, unit_id, status, due_date, created_at").in("unit_id",MY).is("archived_at",null).in("status",["in_progress","pending_review","rejected"]);
   if(from) q=q.gte("created_at",from);
   if(to)   q=q.lte("created_at", to + "T23:59:59");
-  const [{ data: tasks }, { data: notes }] = await Promise.all([
+  // Approved/completed work (archived) — count only, to keep the Approved tile truthful.
+  let aq=sb.from("tasks").select("id, unit_id, created_at").in("unit_id",MY).eq("status","approved");
+  if(from) aq=aq.gte("created_at",from);
+  if(to)   aq=aq.lte("created_at", to + "T23:59:59");
+  const [{ data: tasks }, { data: approved }, { data: notes }] = await Promise.all([
     q,
+    aq,
     sb.from("notifications").select("*").eq("user_id",ME.id).order("created_at",{ascending:false}).limit(5),
   ]);
-  const all=tasks||[];
+  const all=tasks||[]; const appr=approved||[];
   const overdue=t=>t.due_date && t.status!=="approved" && t.due_date<todayStr();
   const cnt=s=>all.filter(t=>t.status===s).length;
-  const kpi={ total:all.length, inprog:cnt("in_progress"), pending:cnt("pending_review"), approved:cnt("approved"), rejected:cnt("rejected"), due:all.filter(overdue).length };
+  // "Remaining" counts only open work: in progress + pending. Approved is excluded.
+  const kpi={ remaining:cnt("in_progress")+cnt("pending_review"), total:all.length+appr.length, inprog:cnt("in_progress"), pending:cnt("pending_review"), approved:appr.length, rejected:cnt("rejected"), due:all.filter(overdue).length };
   const rangeLabel = (from||to) ? `${from?fmtDate(from):"start"} → ${to?fmtDate(to):"today"}` : "All time";
 
   const card=(href,cls,ic,num,label)=>`<a class="kpi ${cls}" href="${href}"><div class="kpi-ico">${IC[ic]}</div><div class="kpi-num">${num}</div><div class="kpi-label">${label}</div></a>`;
@@ -100,11 +107,11 @@ async function load(){
     <div class="muted" style="font-size:12.5px;margin:-8px 0 10px">Showing: <strong>${escapeHtml(rangeLabel)}</strong></div>
     ${kpi.due>0?`<a href="my-tasks.html?view=overdue" class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;border-color:var(--red);color:inherit"><span style="font-size:20px">⚠️</span><div><strong style="color:var(--red)">${kpi.due} task${kpi.due===1?" is":"s are"} overdue.</strong> <span class="muted">Click to see them.</span></div></a>`:""}
     <div class="grid grid-6">
-      ${card("my-tasks.html","k-navy","total",kpi.total,"My tasks")}
+      ${card("my-tasks.html","k-navy","total",kpi.remaining,"My open tasks")}
       ${card("my-tasks.html?status=in_progress","k-navy","clock",kpi.inprog,"In progress")}
       ${card("my-tasks.html?status=pending_review","k-amber","clock",kpi.pending,"Pending review")}
       ${card("my-tasks.html?view=overdue","k-red","alert",kpi.due,"Overdue")}
-      ${card("my-tasks.html?status=approved","k-green","check",kpi.approved,"Approved")}
+      ${card("my-tasks.html?status=archived","k-green","check",kpi.approved,"Approved (archived)")}
       ${card("my-tasks.html?status=rejected","k-red","x",kpi.rejected,"Rejected")}
     </div>
     <div class="grid grid-3" style="margin-top:16px">
@@ -113,8 +120,8 @@ async function load(){
       <div class="card"><div class="section-head"><h2>Notifications</h2><a class="btn btn-sm" href="notifications.html">View all</a></div><div class="feed">${notesHtml}</div></div>
     </div>
     ${MY.length>1?`<div class="card" style="margin-top:16px"><div class="section-head"><h2>By unit</h2></div>
-      <div class="table-wrap" style="box-shadow:none"><table><colgroup><col style="width:40%"><col><col><col><col></colgroup><thead><tr><th>Unit</th><th>Total</th><th>Pending</th><th>Overdue</th><th>Approved</th></tr></thead>
-      <tbody>${MY.map(uid=>{const list=all.filter(t=>t.unit_id===uid);return `<tr><td><strong>${escapeHtml(UNAME[uid])}</strong></td><td>${list.length}</td><td>${list.filter(t=>t.status==="pending_review").length}</td><td>${list.filter(overdue).length?`<span class="badge badge-rejected badge-flat">${list.filter(overdue).length}</span>`:0}</td><td>${list.filter(t=>t.status==="approved").length}</td></tr>`;}).join("")}</tbody></table></div></div>`:""}`;
+      <div class="table-wrap" style="box-shadow:none"><table><colgroup><col style="width:40%"><col><col><col><col></colgroup><thead><tr><th>Unit</th><th>Remaining</th><th>Pending</th><th>Overdue</th><th>Approved</th></tr></thead>
+      <tbody>${MY.map(uid=>{const list=all.filter(t=>t.unit_id===uid);const rem=list.filter(t=>t.status==="in_progress"||t.status==="pending_review").length;const apprU=appr.filter(t=>t.unit_id===uid).length;return `<tr><td><strong>${escapeHtml(UNAME[uid])}</strong></td><td>${rem}</td><td>${list.filter(t=>t.status==="pending_review").length}</td><td>${list.filter(overdue).length?`<span class="badge badge-rejected badge-flat">${list.filter(overdue).length}</span>`:0}</td><td>${apprU}</td></tr>`;}).join("")}</tbody></table></div></div>`:""}`;
 
   drawChart(kpi);
   new MutationObserver(()=>drawChart(kpi)).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
